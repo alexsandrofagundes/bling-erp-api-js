@@ -1,0 +1,241 @@
+import { Entity } from '../@shared/entity'
+import {
+  IChangeSituationManyBody,
+  IChangeSituationManyResponse
+} from './interfaces/change-situation-many.interface'
+import {
+  IChangeSituationBody,
+  IChangeSituationParams
+} from './interfaces/change-situation.interface'
+import { ICreateBody, ICreateResponse } from './interfaces/create.interface'
+import {
+  IDeleteManyParams,
+  IDeleteManyResponse
+} from './interfaces/delete-many.interface'
+import { IDeleteParams } from './interfaces/delete.interface'
+import { IFindFinalCustomerResponse } from './interfaces/find-final-customer.interface'
+import {
+  IFindTypesParams,
+  IFindTypesResponse
+} from './interfaces/find-types.interface'
+import { IFindParams, IFindResponse } from './interfaces/find.interface'
+import { IGetParams, IGetResponse } from './interfaces/get.interface'
+import { IUpdateBody, IUpdateParams } from './interfaces/update.interface'
+
+/**
+ * Entidade para interação com Contatos.
+ *
+ * @see https://developer.bling.com.br/referencia#/Contatos
+ */
+export class Contatos extends Entity {
+  /**
+   * Remove múltiplos contatos.
+   *
+   * @param {IDeleteManyParams} params Parâmetros da remoção.
+   *
+   * @returns {Promise<IDeleteManyResponse>}
+   * @throws {BlingApiException|BlingInternalException}
+   *
+   * @see https://developer.bling.com.br/referencia#/Contatos/delete_contatos
+   */
+  public async deleteMany(
+    params: IDeleteManyParams
+  ): Promise<IDeleteManyResponse> {
+    return await this.repository.destroy({
+      endpoint: 'contatos',
+      id: String(''),
+      params: {
+        idsContatos: params.idsContatos
+      }
+    })
+  }
+
+  /**
+   * Remove um contato.
+   *
+   * @param {IDeleteParams} params Parâmetros da remoção.
+   *
+   * @returns {Promise<null>} Não há retorno.
+   * @throws {BlingApiException|BlingInternalException}
+   *
+   * @see https://developer.bling.com.br/referencia#/Contatos/delete_contatos__idContato_
+   */
+  public async delete(params: IDeleteParams): Promise<null> {
+    return await this.repository.destroy({
+      endpoint: 'contatos',
+      id: String(params.idContato)
+    })
+  }
+
+  /**
+   * Obtém contatos.
+   *
+   * @param {IGetParams} params Parâmetros da busca.
+   *
+   * @returns {Promise<IGetResponse>}
+   * @throws {BlingApiException|BlingInternalException}
+   *
+   * @see https://developer.bling.com.br/referencia#/Contatos/get_contatos
+   */
+  public async get(params?: IGetParams): Promise<IGetResponse> {
+    return await this.repository.index({
+      endpoint: 'contatos',
+      params: {
+        pagina: params?.pagina,
+        limite: params?.limite,
+        pesquisa: params?.pesquisa,
+        criterio: params?.criterio,
+        dataInclusaoInicial: this.prepareStringOrDateParam(
+          params?.dataInclusaoInicial,
+          true
+        ),
+        dataInclusaoFinal: this.prepareStringOrDateParam(
+          params?.dataInclusaoFinal,
+          true
+        ),
+        dataAlteracaoInicial: this.prepareStringOrDateParam(
+          params?.dataAlteracaoInicial,
+          true
+        ),
+        dataAlteracaoFinal: this.prepareStringOrDateParam(
+          params?.dataAlteracaoFinal,
+          true
+        ),
+        idTipoContato: params?.idTipoContato,
+        idVendedor: params?.idVendedor,
+        uf: params?.uf,
+        telefone: params?.telefone,
+        idsContatos: params?.idsContatos,
+        numeroDocumento: params?.numeroDocumento,
+        tipoPessoa: params?.tipoPessoa
+      }
+    })
+  }
+
+  /**
+   * Obtém um contato.
+   *
+   * @param {IFindParams} params Parâmetros da busca.
+   *
+   * @returns {Promise<IFindResponse>}
+   * @throws {BlingApiException|BlingInternalException}
+   *
+   * @see https://developer.bling.com.br/referencia#/Contatos/get_contatos__idContato_
+   */
+  public async find(params: IFindParams): Promise<IFindResponse> {
+    return await this.repository.show({
+      endpoint: 'contatos',
+      id: String(params.idContato)
+    })
+  }
+
+  /**
+   * Obtém os tipos de contato de um contato.
+   *
+   * @param {IFindTypesParams} params Parâmetros da busca.
+   *
+   * @returns {Promise<IFindTypesResponse>}
+   * @throws {BlingApiException|BlingInternalException}
+   *
+   * @see https://developer.bling.com.br/referencia#/Contatos/get_contatos__idContato__tipos
+   */
+  public async findTypes(
+    params: IFindTypesParams
+  ): Promise<IFindTypesResponse> {
+    return await this.repository.show({
+      endpoint: 'contatos',
+      id: `${params.idContato}/tipos`
+    })
+  }
+
+  /**
+   * Obtém os dados do contato Consumidor Final.
+   *
+   * @returns {Promise<IFindFinalCustomerResponse>}
+   * @throws {BlingApiException|BlingInternalException}
+   *
+   * @see https://developer.bling.com.br/referencia#/Contatos/get_contatos_consumidor_final
+   */
+  public async findFinalCustomer(): Promise<IFindFinalCustomerResponse> {
+    return await this.repository.index({
+      endpoint: 'contatos/consumidor-final'
+    })
+  }
+
+  /**
+   * Altera a situação de um contato.
+   *
+   * @param {IChangeSituationParams & IChangeSituationBody} params Os parâmetros para a alteração.
+   *
+   * @returns {Promise<null>}
+   * @throws {BlingApiException|BlingInternalException}
+   *
+   * @see https://developer.bling.com.br/referencia#/Contatos/patch_contatos__idContato__situacoes
+   */
+  public async changeSituation(
+    params: IChangeSituationParams & IChangeSituationBody
+  ): Promise<null> {
+    const { idContato, ...body } = params
+    return await this.repository.update({
+      endpoint: 'contatos',
+      id: `${idContato}/situacoes`,
+      body
+    })
+  }
+
+  /**
+   * Altera a situação de múltiplos contatos.
+   *
+   * @param {IChangeSituationManyBody} body O corpo da requisição.
+   *
+   * @returns {Promise<IChangeSituationManyResponse>}
+   * @throws {BlingApiException|BlingInternalException}
+   *
+   * @see https://developer.bling.com.br/referencia#/Contatos/post_contatos_situacoes
+   */
+  public async changeSituationMany(
+    body: IChangeSituationManyBody
+  ): Promise<IChangeSituationManyResponse> {
+    return await this.repository.store({
+      endpoint: 'contatos/situacoes',
+      body
+    })
+  }
+
+  /**
+   * Cria um contato.
+   *
+   * @param {ICreateBody} body O conteúdo para a criação.
+   *
+   * @returns {Promise<ICreateResponse>}
+   * @throws {BlingApiException|BlingInternalException}
+   *
+   * @see https://developer.bling.com.br/referencia#/Contatos/post_contatos
+   */
+  public async create(body: ICreateBody): Promise<ICreateResponse> {
+    return await this.repository.store({
+      endpoint: 'contatos',
+      body
+    })
+  }
+
+  /**
+   * Altera um contato.
+   *
+   * @param {IUpdateParams & IUpdateBody} params Os parâmetros da atualização.
+   *
+   * @return {Promise<null>}
+   * @throws {BlingApiException|BlingInternalException}
+   *
+   * @see https://developer.bling.com.br/referencia#/Contatos/put_contatos__idContato_
+   */
+  public async update(params: IUpdateParams & IUpdateBody): Promise<null> {
+    const { idContato, ...body } = params
+
+    return await this.repository.replace({
+      endpoint: 'contatos',
+      id: String(idContato),
+      body
+    })
+  }
+}

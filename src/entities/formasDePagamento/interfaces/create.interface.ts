@@ -1,0 +1,36 @@
+import ISituacao from '../../@shared/types/situacao.type'
+import { IAutoLiquidacao } from '../types/auto-liquidacao.type'
+import { IBandeiraCartao } from '../types/bandeira-cartao.type'
+import { IDestino } from '../types/destino.type'
+import { IFinalidade } from '../types/finalidade.type'
+import { IPadrao } from '../types/padrao.type'
+import { ITipoCartao } from '../types/tipo-cartao.type'
+import { ITipoPagamento } from '../types/tipo-pagamento.type'
+
+export interface ICreateBody {
+  descricao: string
+  tipoPagamento: ITipoPagamento
+  situacao?: ISituacao
+  padrao?: IPadrao
+  condicao?: string
+  destino: IDestino
+  finalidade: IFinalidade
+  juros?: number
+  multa?: number
+  utilizaDiasUteis?: boolean
+  taxas?: {
+    aliquota?: number
+    valor?: number
+    prazo?: number
+  }
+  dadosCartao?: {
+    bandeira: IBandeiraCartao
+    tipo: ITipoCartao
+    cnpjCredenciadora?: string
+    autoLiquidacao?: IAutoLiquidacao
+  }
+}
+
+export interface ICreateResponse {
+  data: { id: number }
+}

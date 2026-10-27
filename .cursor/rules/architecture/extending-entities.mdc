@@ -1,0 +1,63 @@
+---
+description: Checklist for adding or extending Bling API modules
+globs: src/entities/**,src/bling.ts
+alwaysApply: false
+---
+
+# Extending Entity Modules
+
+Use Bling's official reference as the source of truth: https://developer.bling.com.br/referencia
+
+## New Resource Module
+
+1. **Create folder** `src/entities/<camelCaseName>/` matching an existing naming pattern (`src/entities/depositos/`, `src/entities/gruposDeProdutos/`).
+
+2. **Add `index.ts`** — class extending `Entity`, one method per Bling operation. Follow `src/entities/camposCustomizados/index.ts` for a medium module or `src/entities/empresas/index.ts` for a minimal one.
+
+3. **Add interfaces** — one file per operation in `interfaces/` named `<operation>.interface.ts` (e.g. `find.interface.ts`, `post-stock.interface.ts`). Export `I<Operation>Params`, `I<Operation>Body`, `I<Operation>Response` as needed. See `src/entities/nfes/interfaces/`.
+
+4. **Add types** — union/enum types in `types/<name>.type.ts` when Bling documents discrete values. See `src/entities/contatos/types/criterio.type.ts`, `src/entities/nfes/types/situacao.type.ts`.
+
+5. **Reuse `@shared`** — import from `../../@shared/types/` (relative) only when the value set matches. Do not reuse shared `situacao.type.ts` for a different Bling situação enum.
+
+6. **Register in facade** — import and add getter in `src/bling.ts`.
+
+7. **Add tests** — `__tests__/index.spec.ts` plus `*-response.ts` fixtures. Mirror `src/entities/camposCustomizados/__tests__/`.
+
+8. **Update README** — entity checklist in `README.md` if the resource is user-facing.
+
+## New Operation on Existing Module
+
+1. Add interface file under the module's `interfaces/`.
+2. Add entity method calling the correct repository verb (see `architecture/repository-layer.mdc`).
+3. Add fixture + spec case in `__tests__/`.
+4. Match HTTP verb used by siblings for the same semantic (PATCH situation → `update` vs `replace`; check the resource's existing `changeSituation`).
+
+## Choosing `update` vs `replace`
+
+- Bling **PATCH** partial updates → `repository.update` (`src/entities/camposCustomizados/index.ts`).
+- Bling **PUT** full resource replace → `repository.replace` (`src/entities/contatos/index.ts` `update` method).
+- Verify against Bling docs. `replace` maps to HTTP PUT in `src/repositories/bling.repository.ts`.
+- Check the verb against the OpenAPI spec, not against sibling methods or the `@see` link. `camposCustomizados.update` and `ordensDeProducao.changeSituation` used `update` (PATCH) for operations the spec defines as PUT.
+- `readOnly` fields of the spec do not belong in input types (`ICreateBody`, `IUpdateBody`); `writeOnly` fields do not belong in response types.
+- Request optionality follows the OpenAPI `required` array, including nested objects. A field omitted from `required` stays optional on the interface, including the body of a situation change.
+- A list filter whose enum differs from the resource field gets its own type (`ISituacaoFiltro`, `ITipoFiltro`). Do not widen the resource union to include filter-only values, and do not narrow the filter to the resource enum.
+- When the schema `type` is `string` and `enum` contains numeric-looking values (`"0"`, `"1"`), the TypeScript union stays strings. When `type` is `integer` and `enum` is stored as numeric strings, the union stays numbers.
+- A root `oneOf` that pairs the resource DTO with the DTO of a nested object (grupos de produtos: `GruposProdutosDadosDTO` or `GruposProdutosGrupoProdutoPaiDTO`) follows the resource DTO. The nested DTO's `required` applies only inside that object.
+- Every parameter declared in `IGetParams`/`IFindParams` must be forwarded in `params`; a declared but unforwarded filter is silently dropped (`contasReceber.get` dropped `idContato` and `boletoGerado`).
+
+## Special Cases
+
+- **Response headers required** — set `shouldIncludeHeadersInResponse: true` (`src/entities/homologacao/index.ts`). Homologação is the headers example, not GET-with-body.
+- **GET with body** — `IIndexOptions` allows optional `body`; no current entity uses it. Add only if [Bling reference](https://developer.bling.com.br/referencia) documents a GET payload.
+- **Non-CRUD action endpoints** — name the method after the Bling action; use `store` for POST actions (`src/entities/pedidosVendas/index.ts`).
+- **Situation change** — follow the reference body. `PATCH .../situacoes/{idSituacao}` with no body sends `body: {}` and puts both ids in the path (`src/entities/pedidosVendas/index.ts`, `src/entities/pedidosCompras/index.ts`). `PATCH .../situacao` or `.../padrao` with a JSON body sends that body (`src/entities/formasDePagamento/index.ts`).
+- **302 Location** — `show` with `preserveRedirect: true` and read `headers.location` (`src/entities/documentosCompartilhados/index.ts`).
+- **Array filters** — the interface property omits the trailing `[]` from the OpenAPI query name.
+- **Orchestration** — `Homologacao.execute()` sequences other entity methods and returns `Promise<void>`; ordinary CRUD methods `await this.repository.*` and use `Promise<null>` when Bling has no body.
+
+## Do Not
+
+- Create alternate HTTP clients outside `src/repositories/` (OAuth token/revoke HTTP belongs in `src/auth/oauth-client.ts` only).
+- Put test fixtures in `interfaces/` or production types in `__tests__/`.
+- Skip `@see` links to Bling reference in JSDoc.

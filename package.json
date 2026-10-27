@@ -1,0 +1,76 @@
+{
+  "name": "bling-erp-api-js",
+  "version": "6.0.0",
+  "description": "Pacote de integração com a API do Bling ERP",
+  "main": "lib/bling.js",
+  "directories": {
+    "test": "test"
+  },
+  "files": [
+    "lib/**/*"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "format": "prettier --write 'src/**/*.ts'",
+    "lint": "eslint --fix 'src/**/*.ts'",
+    "test": "npm run build && jest --config jest.config.ts",
+    "test:coverage": "jest --config jest.config.ts --coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlexandreBellas/bling-erp-api-js.git"
+  },
+  "keywords": [
+    "javascript",
+    "api",
+    "php",
+    "typescript",
+    "csharp",
+    "integration",
+    "js",
+    "erp",
+    "ts",
+    "nfe",
+    "sefaz",
+    "bling",
+    "bling-erp"
+  ],
+  "author": "AlexandreBellas; vitor-san",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AlexandreBellas/bling-erp-api-js/issues"
+  },
+  "homepage": "https://github.com/AlexandreBellas/bling-erp-api-js#readme",
+  "dependencies": {
+    "axios": "^1.6.2"
+  },
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/chance": "^1.1.6",
+    "@types/jest": "^29.5.14",
+    "@types/uuid": "^9.0.7",
+    "chance": "^1.1.13",
+    "code-conventions": "file:../code-conventions",
+    "eslint": "^10.8.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
+    "jest": "^30.4.2",
+    "jiti": "^2.7.0",
+    "prettier": "^3.1.1",
+    "ts-jest": "^29.4.12",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^8.67.0",
+    "uuid": "^14.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "allowScripts": {
+    "unrs-resolver@1.12.2": true,
+    "file:../../code-conventions": true
+  }
+}

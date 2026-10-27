@@ -1,0 +1,48 @@
+---
+description: HTTP repository contract and transport implementation
+globs: src/repositories/**
+alwaysApply: false
+---
+
+# Repository Layer
+
+## Contract
+
+`src/repositories/bling.repository.interface.ts` defines `IBlingRepository` — the sole HTTP abstraction entities depend on.
+
+### Verb Mapping (Laravel-style naming)
+
+| Method | HTTP | Use in entities |
+|--------|------|-----------------|
+| `index` | GET (no resource id) | List, search, auxiliary GET routes |
+| `show` | GET `endpoint/id` | Single resource or nested path via composite `id` |
+| `store` | POST | Create, action endpoints that POST a body |
+| `update` | PATCH `endpoint/id` | Partial updates, some situation changes |
+| `replace` | PUT `endpoint/id` | Full replacements |
+| `destroy` | DELETE `endpoint/id` | Delete single or bulk (empty `id` + query params) |
+
+## Implementation
+
+`src/repositories/bling.repository.ts`:
+
+- Creates axios with `baseURL`; constructor takes `{ baseUrl, authProvider }` — **no stored token**.
+- Request interceptor: optional `authProvider.ensureFreshToken`, then `applyRequestHeaders` (does not branch on `auth.method`).
+- Response interceptor: on **401**, `handleUnauthorized()` and retry **once**. Refresh throw does **not** replace original 401.
+- Maps axios errors to `BlingApiException` / `BlingInternalException`.
+
+OAuth HTTP (`/oauth/token`, `/oauth/revoke`) lives in `src/auth/oauth-client.ts`, not here.
+
+## Test Double
+
+`src/repositories/bling-in-memory.repository.ts` is unchanged and auth-agnostic.
+
+## Redirects and query names
+
+- `preserveRedirect: true` stops axios from following redirects (`maxRedirects: 0`) and treats HTTP 302 as success. The result is `{ headers, ...body }`, with header names lowercased by axios (`Location` arrives as `location`). Use it when the reference documents a 302 and a `Location` header, as in documentos compartilhados. Combine it with `shouldIncludeHeadersInResponse` only when the caller also needs the headers of a JSON body.
+- Array query parameters keep the TypeScript name without `[]`. Axios appends `[]` when it serializes an array, which matches the wire name in the reference (`idsProdutos` in the library, `idsProdutos[]` in the OpenAPI document).
+
+## Rules for Changes
+
+- Add new HTTP patterns only here — never in entity classes.
+- Preserve error mapping in `defaultCatchBehavior`.
+- Interceptor tests belong in `src/repositories/__tests__/`.

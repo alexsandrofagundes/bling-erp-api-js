@@ -1,0 +1,390 @@
+import { JwtAuthProvider } from '../../auth/providers/jwt-auth.provider'
+import { OAuthAuthProvider } from '../../auth/providers/oauth-auth.provider'
+import { OpaqueAuthProvider } from '../../auth/providers/opaque-auth.provider'
+import { BlingRepository } from '../bling.repository'
+
+describe('BlingRepository interceptors', () => {
+  const assignAdapter = (repository: BlingRepository, adapter: jest.Mock) => {
+    ;(
+      repository as unknown as { api: { defaults: { adapter: jest.Mock } } }
+    ).api.defaults.adapter = adapter
+  }
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('should send JWT headers on resource requests', async () => {
+    const repository = new BlingRepository({
+      baseUrl: 'https://api.bling.com.br/Api/v3',
+      authProvider: new JwtAuthProvider({
+        method: 'jwt',
+        accessToken: 'jwt-token'
+      })
+    })
+    const adapter = jest.fn(async (config) => ({
+      data: { data: [] },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config
+    }))
+    assignAdapter(repository, adapter)
+
+    await repository.index({ endpoint: 'produtos' })
+
+    const jwtConfig = adapter.mock.calls[0]?.[0]
+    expect(jwtConfig?.headers.get('Authorization')).toBe('Bearer jwt-token')
+    expect(jwtConfig?.headers.get('enable-jwt')).toBe('1')
+  })
+
+  it('should send only Bearer headers for opaque tokens', async () => {
+    const repository = new BlingRepository({
+      baseUrl: 'https://api.bling.com.br/Api/v3',
+      authProvider: new OpaqueAuthProvider({
+        method: 'opaque',
+        accessToken: 'opaque-token'
+      })
+    })
+    const adapter = jest.fn(async (config) => ({
+      data: { data: [] },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config
+    }))
+    assignAdapter(repository, adapter)
+
+    await repository.index({ endpoint: 'produtos' })
+
+    const opaqueConfig = adapter.mock.calls[0]?.[0]
+    expect(opaqueConfig?.headers.get('Authorization')).toBe(
+      'Bearer opaque-token'
+    )
+    expect(opaqueConfig?.headers.get('enable-jwt')).toBeFalsy()
+  })
+
+  it('should refresh once and retry the original request after 401', async () => {
+    const authProvider = new OAuthAuthProvider({
+      method: 'oauth',
+      clientId: 'id',
+      clientSecret: 'secret',
+      accessToken: 'expired',
+      refreshToken: 'refresh'
+    })
+    const handleUnauthorized = jest
+      .spyOn(authProvider, 'handleUnauthorized')
+      .mockImplementation(async () => {
+        jest
+          .spyOn(authProvider.oauthClient, 'accessToken', 'get')
+          .mockReturnValue('renewed')
+        return true
+      })
+
+    const repository = new BlingRepository({
+      baseUrl: 'https://api.bling.com.br/Api/v3',
+      authProvider
+    })
+
+    const adapter = jest
+      .fn()
+      .mockImplementationOnce(async (config) => {
+        const error = Object.assign(new Error('Unauthorized'), {
+          isAxiosError: true,
+          response: { status: 401, data: {}, headers: {}, config },
+          config
+        })
+        throw error
+      })
+      .mockImplementationOnce(async (config) => ({
+        data: { data: [] },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config
+      }))
+    assignAdapter(repository, adapter)
+
+    await expect(repository.index({ endpoint: 'produtos' })).resolves.toEqual({
+      data: []
+    })
+    expect(handleUnauthorized).toHaveBeenCalledTimes(1)
+    expect(adapter).toHaveBeenCalledTimes(2)
+    expect(adapter.mock.calls[1]?.[0].headers.get('Authorization')).toBe(
+      'Bearer renewed'
+    )
+  })
+
+  it('should not retry a 401 more than once', async () => {
+    const authProvider = new OAuthAuthProvider({
+      method: 'oauth',
+      clientId: 'id',
+      clientSecret: 'secret',
+      accessToken: 'expired',
+      refreshToken: 'refresh'
+    })
+    jest.spyOn(authProvider, 'handleUnauthorized').mockResolvedValue(true)
+
+    const repository = new BlingRepository({
+      baseUrl: 'https://api.bling.com.br/Api/v3',
+      authProvider
+    })
+
+    const adapter = jest.fn(async (config) => {
+      const error = Object.assign(new Error('Unauthorized'), {
+        isAxiosError: true,
+        response: {
+          status: 401,
+          data: {
+            error: {
+              type: 'invalid_token',
+              message: 'Erro',
+              description: 'Token inválido'
+            }
+          },
+          headers: {},
+          config
+        },
+        config
+      })
+      throw error
+    })
+    assignAdapter(repository, adapter)
+
+    await expect(
+      repository.index({ endpoint: 'produtos' })
+    ).rejects.toMatchObject({
+      message: 'Token inválido'
+    })
+    expect(adapter).toHaveBeenCalledTimes(2)
+  })
+
+  it('should surface the original 401 when handleUnauthorized rejects', async () => {
+    const authProvider = new OAuthAuthProvider({
+      method: 'oauth',
+      clientId: 'id',
+      clientSecret: 'secret',
+      accessToken: 'expired',
+      refreshToken: 'refresh'
+    })
+    jest
+      .spyOn(authProvider, 'handleUnauthorized')
+      .mockRejectedValue(new Error('refresh failed'))
+
+    const repository = new BlingRepository({
+      baseUrl: 'https://api.bling.com.br/Api/v3',
+      authProvider
+    })
+
+    const adapter = jest.fn(async (config) => {
+      const error = Object.assign(new Error('Unauthorized'), {
+        isAxiosError: true,
+        response: {
+          status: 401,
+          data: {
+            error: {
+              type: 'invalid_token',
+              message: 'Erro',
+              description: 'Token inválido'
+            }
+          },
+          headers: {},
+          config
+        },
+        config
+      })
+      throw error
+    })
+    assignAdapter(repository, adapter)
+
+    await expect(
+      repository.index({ endpoint: 'produtos' })
+    ).rejects.toMatchObject({
+      message: 'Token inválido'
+    })
+    expect(adapter).toHaveBeenCalledTimes(1)
+  })
+
+  it('should await ensureFreshToken before sending the first request', async () => {
+    const authProvider = new OAuthAuthProvider({
+      method: 'oauth',
+      clientId: 'id',
+      clientSecret: 'secret',
+      refreshToken: 'refresh'
+    })
+    const sequence: string[] = []
+    jest
+      .spyOn(authProvider, 'ensureFreshToken')
+      .mockImplementation(async () => {
+        sequence.push('ensureFreshToken')
+        jest
+          .spyOn(authProvider.oauthClient, 'accessToken', 'get')
+          .mockReturnValue('fresh')
+      })
+    const applyRequestHeaders =
+      authProvider.applyRequestHeaders.bind(authProvider)
+    jest
+      .spyOn(authProvider, 'applyRequestHeaders')
+      .mockImplementation((headers) => {
+        sequence.push('applyRequestHeaders')
+        applyRequestHeaders(headers)
+      })
+
+    const repository = new BlingRepository({
+      baseUrl: 'https://api.bling.com.br/Api/v3',
+      authProvider
+    })
+    const adapter = jest.fn(async (config) => {
+      sequence.push('request')
+      return {
+        data: { data: [] },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config
+      }
+    })
+    assignAdapter(repository, adapter)
+
+    await repository.index({ endpoint: 'produtos' })
+
+    expect(sequence).toEqual([
+      'ensureFreshToken',
+      'applyRequestHeaders',
+      'request'
+    ])
+    expect(adapter.mock.calls[0]?.[0].headers.get('Authorization')).toBe(
+      'Bearer fresh'
+    )
+  })
+
+  it('should send PATCH on update and PUT on replace', async () => {
+    const repository = new BlingRepository({
+      baseUrl: 'https://api.bling.com.br/Api/v3',
+      authProvider: new JwtAuthProvider({
+        method: 'jwt',
+        accessToken: 'jwt-token'
+      })
+    })
+    const adapter = jest.fn(async (config) => ({
+      data: { data: { id: 1 } },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config
+    }))
+    assignAdapter(repository, adapter)
+
+    await repository.update({
+      endpoint: 'produtos',
+      id: '1',
+      body: { nome: 'Parcial' }
+    })
+    await repository.replace({
+      endpoint: 'produtos',
+      id: '1',
+      body: { nome: 'Completo' }
+    })
+
+    expect(adapter.mock.calls[0]?.[0].method).toBe('patch')
+    expect(adapter.mock.calls[1]?.[0].method).toBe('put')
+  })
+})
+
+describe('BlingRepository response options', () => {
+  const plain = (value: unknown) => JSON.parse(JSON.stringify(value))
+
+  const makeRepository = (
+    response: { data: unknown; status?: number; headers?: object } = {
+      data: { data: { id: 1 } }
+    }
+  ) => {
+    const repository = new BlingRepository({
+      baseUrl: 'https://api.bling.com.br/Api/v3',
+      authProvider: new JwtAuthProvider({
+        method: 'jwt',
+        accessToken: 'jwt-token'
+      })
+    })
+    const adapter = jest.fn(async (config) => ({
+      data: response.data,
+      status: response.status ?? 200,
+      statusText: 'OK',
+      headers: response.headers ?? { 'x-test': 'header' },
+      config
+    }))
+    ;(
+      repository as unknown as { api: { defaults: { adapter: jest.Mock } } }
+    ).api.defaults.adapter = adapter
+
+    return { repository, adapter }
+  }
+
+  it('should return only the response body without flags', async () => {
+    const { repository, adapter } = makeRepository()
+
+    const response = await repository.show({ endpoint: 'produtos', id: '1' })
+
+    expect(plain(response)).toEqual({ data: { id: 1 } })
+    const config = adapter.mock.calls[0]?.[0]
+    expect(config?.maxRedirects).toBeUndefined()
+    expect(config?.validateStatus?.(302)).toBe(false)
+  })
+
+  it('should merge response headers when shouldIncludeHeadersInResponse is set', async () => {
+    const { repository } = makeRepository()
+
+    const response = await repository.index({
+      endpoint: 'homologacao/produtos',
+      shouldIncludeHeadersInResponse: true
+    })
+
+    expect(plain(response)).toEqual({
+      headers: { 'x-test': 'header' },
+      data: { id: 1 }
+    })
+  })
+
+  it('should not follow redirects and accept 302 when preserveRedirect is set', async () => {
+    const { repository, adapter } = makeRepository({
+      data: '',
+      status: 302,
+      headers: { location: 'https://download.example/file.pdf' }
+    })
+
+    const response = await repository.show({
+      endpoint: 'documentos-compartilhados',
+      id: 'abc',
+      preserveRedirect: true
+    })
+
+    const config = adapter.mock.calls[0]?.[0]
+    expect(config?.maxRedirects).toBe(0)
+    expect(config?.validateStatus?.(200)).toBe(true)
+    expect(config?.validateStatus?.(302)).toBe(true)
+    expect(config?.validateStatus?.(404)).toBe(false)
+    expect(config?.validateStatus?.(500)).toBe(false)
+    expect(plain(response)).toEqual({
+      headers: { location: 'https://download.example/file.pdf' }
+    })
+  })
+
+  it('should treat a non-object body as empty when headers are included', async () => {
+    const { repository } = makeRepository({ data: null })
+
+    const response = await repository.index({
+      endpoint: 'produtos',
+      shouldIncludeHeadersInResponse: true
+    })
+
+    expect(plain(response)).toEqual({ headers: { 'x-test': 'header' } })
+  })
+
+  it('should apply preserveRedirect on index too', async () => {
+    const { repository, adapter } = makeRepository()
+
+    await repository.index({ endpoint: 'produtos', preserveRedirect: true })
+
+    expect(adapter.mock.calls[0]?.[0]?.maxRedirects).toBe(0)
+  })
+})

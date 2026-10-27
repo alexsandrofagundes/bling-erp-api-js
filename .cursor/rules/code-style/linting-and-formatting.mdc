@@ -1,0 +1,51 @@
+---
+description: ESLint and Prettier formatting standards
+globs: src/**,eslint.config.ts
+alwaysApply: false
+---
+
+# Linting & Formatting
+
+## Tools
+
+- **ESLint v10** — `npm run lint` (`eslint --fix 'src/**/*.ts'`), flat config in `eslint.config.ts`
+- **Prettier** — `npm run format` (`prettier --write 'src/**/*.ts'`)
+- Stack: `@eslint/js` recommended, `typescript-eslint` recommended, `eslint-plugin-prettier/recommended`
+- `eslint.config.ts` also spreads `apiLibrary.configs.recommended` from `code-conventions/eslint/api-library`. The plugin key is `api-library`. Those rules are correctness checks for entity modules: repository-only HTTP, repository call shape, forwarded filters, facade registration, and the rest of the entity contract. Interfaces use an `I` prefix (`@typescript-eslint/naming-convention`). Do not add the React `reactjs` plugin from `code-conventions/eslint/reactjs` here.
+
+Node floor: `^20.19.0 || ^22.13.0 || >=24` (ESLint v10). CI uses Node 22.
+
+## Project-Specific ESLint Overrides
+
+| Scope | Rule |
+|-------|------|
+| `src/entities/**`, `src/auth/**` | `camelcase: off` — Bling field/header names (`access_token`, `enable-jwt`) |
+| `*.spec.ts`, `*.spec.js`, `*.test.ts`, `*.test.js` | `no-undef: off` |
+| All files | `space-before-function-paren: off` |
+| Global | `@typescript-eslint/no-var-requires: off` |
+| Global | `@typescript-eslint/no-explicit-any: off` — Bling payload mapping and in-memory repository |
+| Global | `@typescript-eslint/no-empty-object-type: off` — empty Bling request/response bodies |
+| Global | `@typescript-eslint/no-useless-constructor: off` — JWT/opaque clients re-expose `BlingBase`'s protected constructor |
+| Global | `@typescript-eslint/no-unused-vars` ignores `_` prefix — unused interface args on the in-memory repository |
+
+## Style Aligned with Codebase
+
+- Single quotes for strings.
+- Follow Prettier output on save/format.
+- 2-space indentation.
+- Trailing commas in multiline objects where Prettier adds them.
+
+## Before Committing
+
+Run `npm run lint` and `npm run format` after editing `src/`.
+
+- `.github/workflows/on-commit-test.yaml` — build + `npm test` on every push.
+- `.github/workflows/calculate-coverage.yaml` — coverage on `main`.
+
+## Entity Folder Imports
+
+Import entity class from `'../'` in tests (`src/entities/camposCustomizados/__tests__/index.spec.ts`).
+
+Import repository from `'../../../repositories/bling-in-memory.repository'` relative to `__tests__/`.
+
+Match import ordering: external packages first, then project modules, then local fixtures.

@@ -1,0 +1,65 @@
+---
+description: Interface and type file organization per entity
+globs: src/entities/**/interfaces/**,src/entities/**/types/**
+alwaysApply: false
+---
+
+# Interfaces & Types
+
+## Interfaces (`interfaces/`)
+
+One file per API operation or logical request/response pair.
+
+### Standard CRUD Files
+
+| File | Typical exports |
+|------|-----------------|
+| `get.interface.ts` | `IGetParams`, `IGetResponse` |
+| `find.interface.ts` | `IFindParams`, `IFindResponse` |
+| `create.interface.ts` | `ICreateBody`, `ICreateResponse` |
+| `update.interface.ts` | `IUpdateParams`, `IUpdateBody`, `IUpdateResponse` |
+| `delete.interface.ts` | `IDeleteParams` |
+
+Reference: `src/entities/camposCustomizados/interfaces/`, `src/entities/gruposDeProdutos/interfaces/`.
+
+### Action / Sub-resource Files
+
+Kebab-case **file** names from the English method name (`changeSituation` → `change-situation.interface.ts`):
+
+- `change-situation.interface.ts`
+- `post-stock.interface.ts`
+- `reverse-accounts.interface.ts`
+- `get-bank-slips.interface.ts`
+- `find-by-module.interface.ts`
+- `cancel-bank-slips.interface.ts`
+
+See `src/entities/pedidosVendas/interfaces/`, `src/entities/contasReceber/interfaces/`, `src/entities/nfses/interfaces/`.
+
+### Response Envelope
+
+Most Bling responses wrap data in a `data` property. Mirror that in `I*Response` interfaces (`src/entities/camposCustomizados/interfaces/find.interface.ts`).
+
+List endpoints may return `data` as an array with pagination implied by `pagina`/`limite` params (`src/entities/contatos/interfaces/get.interface.ts`).
+
+### Cross-module Type Imports
+
+Use relative `../../@shared/types/<file>.type` from `interfaces/` or `__tests__/`. Do not import via `src/...` (that required deprecated `baseUrl`).
+
+Shared types: **default** import. Module-local types: **named** import from `../types/`.
+
+Reuse `@shared/types/situacao.type.ts` only for `0 | 1` active/inactive. Other situação enums stay in the entity `types/` folder.
+
+## Types (`types/`)
+
+Use `type` aliases for Bling discrete values (numeric **or** string unions). JSDoc each value (`src/entities/contatos/types/criterio.type.ts`).
+
+- `@shared/types/`: `type IFoo = …` then `export default IFoo`.
+- Entity `types/`: `export type IFoo = …`. Related aliases may share a file (`ISituacao` and `ISituacaoString` in `src/entities/contasReceber/types/situacao.type.ts`).
+
+## Rules
+
+- Do not combine unrelated operations in one interface file.
+- Params interfaces hold path/query identifiers; body interfaces hold POST/PATCH payloads.
+- When an operation has no params, export only the response interface (`src/entities/homologacao/interfaces/get.interface.ts`).
+- Keep interfaces free of runtime logic; no functions or classes.
+- Field-level JSDoc on interfaces is optional (`src/entities/gruposDeProdutos/interfaces/get.interface.ts`); required behavior lives on the entity method.

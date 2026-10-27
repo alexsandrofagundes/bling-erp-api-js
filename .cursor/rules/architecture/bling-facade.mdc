@@ -1,0 +1,37 @@
+---
+description: Bling facade class and module registration
+globs: src/bling.ts
+alwaysApply: false
+---
+
+# Bling Facade
+
+`src/bling.ts` is the package entry (`package.json` → `lib/bling.js`).
+
+## Responsibilities
+
+1. Expose `Bling.create(options)` with discriminated `auth.method` (`jwt` | `opaque` | `oauth`).
+2. Return `BlingJwtClient` / `BlingOpaqueClient` / `BlingOAuthClient` (all extend `BlingBase`). Only OAuth has `readonly auth: OAuthClient`.
+3. Obtain `IBlingRepository` via `getRepository({ baseUrl, authProvider })`.
+4. Lazily instantiate entity modules through private `getModule` on `BlingBase`.
+
+`Bling` is a factory (private constructor). `BlingBase` is abstract. Do not use `new Bling(...)`.
+
+## Module Registration Pattern
+
+When adding a resource:
+
+1. Import the entity class from `src/entities/<module>/`.
+2. Add a public getter on `BlingBase` returning `this.getModule(<EntityClass>)`.
+
+`getModule` uses `Newable<T>` and caches by `EntityClass.name`.
+
+## What Does Not Belong Here
+
+- HTTP logic, axios, or endpoint strings.
+- Auth header/refresh logic — that is `src/auth/` + repository interceptors.
+
+## Private Fields (`BlingBase`)
+
+- `#repository` — shared across all modules for one client instance.
+- `#modules` — `Record<string, Entity | undefined>` cache.

@@ -1,0 +1,27 @@
+/**
+ * Tipagem referente ao tipo de integração da logística.
+ */
+export type ITipoIntegracao =
+  | 'AmazonDBA'
+  | 'B2WEntrega'
+  | 'B2WO2O'
+  | 'Correios'
+  | 'CorreiosLog'
+  | 'CustomLogistic'
+  | 'DafitiMilkrun'
+  | 'Envvias'
+  | 'Frenet'
+  | 'FreteDescomplicado'
+  | 'Intelipost'
+  | 'Jadlog'
+  | 'Jamef'
+  | 'Kangu'
+  | 'LogisticaAliExpress'
+  | 'LogisticaShopee'
+  | 'Loggi'
+  | 'MagaluEntregas'
+  | 'Mandae'
+  | 'MelhorEnvio'
+  | 'MercadoEnvios'
+  | 'OlistFulfillment'
+  | 'TotalExpress'

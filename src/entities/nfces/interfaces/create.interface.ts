@@ -1,0 +1,185 @@
+import IContribuinte from '../../@shared/types/contribuinte.type'
+import IFretePorConta from '../../@shared/types/frete-por-conta.type'
+import IModeloDocumentoReferenciado from '../../@shared/types/modelo-documento-referenciado.type'
+import IModalidadeIcms from '../../@shared/types/modalidade-icms.type'
+import IOrigem from '../../@shared/types/origem.type'
+import ITipoItem from '../../@shared/types/tipo-item.type'
+import ITipoPessoa from '../../@shared/types/tipoPessoa.type'
+import IUF from '../../@shared/types/uf.type'
+import { IFinalidadeNfce } from '../types/finalidade.type'
+import { ITipoNfce } from '../types/tipo.type'
+import { IEspecie } from '../types/especie.type'
+
+export interface ICreateBody {
+  tipo: ITipoNfce
+  numero: string
+  dataOperacao: string
+  contato: {
+    nome: string
+    tipoPessoa: ITipoPessoa
+    numeroDocumento: string
+    ie?: string
+    rg?: string
+    contribuinte: IContribuinte
+    telefone?: string
+    email?: string
+    endereco?: {
+      endereco: string
+      numero?: string
+      complemento?: string
+      bairro: string
+      cep?: string
+      municipio: string
+      uf?: IUF
+      pais?: string
+    }
+  }
+  naturezaOperacao: { id: number }
+  loja?: {
+    id: number
+    numero?: string
+  }
+  finalidade?: IFinalidadeNfce
+  seguro?: number
+  despesas?: number
+  desconto?: number
+  observacoes?: string
+  documentoReferenciado?: {
+    modelo: IModeloDocumentoReferenciado
+    data?: string
+    numero?: string
+    serie?: string
+    contadorOrdemOperacao?: string
+    chaveAcesso?: string
+  }
+  documentosReferenciados?: {
+    modelo: IModeloDocumentoReferenciado
+    data?: string
+    numero?: string
+    serie?: string
+    contadorOrdemOperacao?: string
+    chaveAcesso?: string
+  }[]
+  operacaoComExterior?: boolean
+  exportacao?: {
+    localEmbarque?: string
+    ufEmbarque?: IUF
+  }
+  /**
+   * Obrigatório quando a finalidade for 5 (Crédito) ou 6 (Débito).
+   */
+  tipoNota?: string
+  itens?: {
+    codigo: string
+    descricao?: string
+    unidade?: string
+    quantidade?: number
+    valor?: number
+    tipo?: ITipoItem
+    pesoBruto?: number
+    pesoLiquido?: number
+    numeroPedidoCompra?: string
+    classificacaoFiscal?: string
+    cest?: string
+    codigoServico?: string
+    origem?: IOrigem
+    informacoesAdicionais?: string
+    valorTotal?: number
+    gtin?: string
+    cfop?: string
+    impostos?: {
+      valorAproximadoTotalTributos?: number
+      icms?: {
+        st?: number
+        origem?: IOrigem
+        modalidade?: IModalidadeIcms
+        aliquota?: number
+        valor?: number
+      }
+    }
+    documentoReferenciado?: {
+      chaveAcesso?: string
+      numeroItem?: string
+    }
+    unidadeTributavel?: {
+      unidade?: string
+      quantidade?: number
+    }
+    exportacao?: {
+      drawback?: string
+      registroExportacao?: string
+      chaveAcessoNFe?: string
+    }
+  }[]
+
+  parcelas?: {
+    data: string
+    valor: number
+    observacoes?: string
+    /**
+     * cAut (ou NSU): código de autorização da operação financeira.
+     */
+    caut?: string
+    formaPagamento?: { id: number }
+  }[]
+
+  transporte?: {
+    fretePorConta?: IFretePorConta
+    frete?: number
+    veiculo?: {
+      placa?: string
+      uf?: IUF
+      marca?: string
+    }
+    transportador?: {
+      nome: string
+      numeroDocumento?: string
+      ie?: string
+      endereco?: {
+        endereco?: string
+        municipio?: string
+        uf?: IUF
+      }
+    }
+    volume?: {
+      quantidade?: number
+      especie?: IEspecie
+      numero?: string
+      pesoBruto?: number
+      pesoLiquido?: number
+    }
+    volumes?: {
+      servico: string
+      codigoRastreamento?: string
+    }[]
+
+    etiqueta?: {
+      nome?: string
+      endereco?: string
+      numero?: string
+      complemento?: string
+      municipio?: string
+      uf?: IUF
+      cep?: string
+      bairro?: string
+    }
+  }
+  notaFiscalProdutorRuralReferenciada?: {
+    numero: string
+    serie: string
+    data: string
+  }
+  intermediador?: {
+    cnpj: string
+    nomeUsuario: string
+  }
+}
+
+export interface ICreateResponse {
+  data: {
+    id: number
+    numero: string
+    serie: string
+    contato: { nome?: string }
+  }
+}

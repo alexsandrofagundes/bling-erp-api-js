@@ -1,0 +1,49 @@
+---
+description: TypeScript compiler and module settings for this project
+globs: src/**/*.ts,tsconfig*.json
+alwaysApply: false
+---
+
+# TypeScript Conventions
+
+## Compiler (`tsconfig.json`)
+
+- **Target**: ES6, **Module**: CommonJS.
+- **Strict mode** enabled.
+- **Declarations** emitted to `lib/` with source maps.
+- **rootDir**: `./src` (required by TypeScript 6+ so `lib/` mirrors `src/`).
+- Do **not** use `baseUrl`. Import with relative paths (`../@shared/entity`, `../../@shared/types/situacao.type`). `tsc` does not rewrite path aliases, so `src/...` imports would leak into published `.d.ts` and fail at runtime.
+
+## Build vs Test
+
+`tsconfig.build.json` excludes:
+
+- `src/**/*.spec.ts`
+- `src/entities/**/__tests__`
+
+Tests and fixtures are development-only; published package contains `lib/**/*` per `package.json` `files`.
+
+## Module Style
+
+- ES module `import`/`export` in source (compiled to CommonJS).
+- `'use strict'` at top of `src/bling.ts` (legacy; preserve if editing that file).
+- Default export for `Bling`; named exports for `BlingBase`, client classes, `OAuthClient`, auth types, entities, exceptions, repository types.
+
+## Typing Practices
+
+- Do **not** pass explicit generics on `this.repository.*` calls; the method’s `Promise<I*Response>` (or `Promise<null>`) return type is enough.
+- Prefer interfaces for object shapes; type aliases for unions (`types/*.type.ts`).
+- Optional API fields use `?` on interface properties (`src/entities/camposCustomizados/interfaces/create.interface.ts`).
+- Use `String(...)` when passing numeric ids to repository `id` fields.
+- Intersect params and body types for update methods: `IUpdateParams & IUpdateBody` (`src/entities/camposCustomizados/index.ts`).
+
+## Async
+
+- Entity methods are `async`. Ordinary operations `await this.repository.*`.
+- Return `Promise<null>` when Bling returns no meaningful body.
+- `Homologacao.execute()` is an orchestrator: it awaits other entity methods and returns `Promise<void>`.
+
+## Dependencies
+
+- Runtime: `axios` only.
+- Dev: Jest, ts-jest, Chance, ESLint, Prettier, TypeScript 5.x (`package.json`).
